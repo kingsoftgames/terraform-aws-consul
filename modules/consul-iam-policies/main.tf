@@ -1,10 +1,14 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# ATTACH AN IAM POLICY THAT ALLOWS THE CONSUL NODES TO AUTOMATICALLY DISCOVER EACH OTHER AND FORM A CLUSTER
+# THESE TEMPLATES REQUIRE TERRAFORM VERSION 0.12 AND ABOVE
 # ---------------------------------------------------------------------------------------------------------------------
 
 terraform {
   required_version = ">= 0.12"
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# ATTACH AN IAM POLICY THAT ALLOWS THE CONSUL NODES TO AUTOMATICALLY DISCOVER EACH OTHER AND FORM A CLUSTER
+# ---------------------------------------------------------------------------------------------------------------------
 
 resource "aws_iam_role_policy" "auto_discover_cluster" {
   count  = var.enabled ? 1 : 0

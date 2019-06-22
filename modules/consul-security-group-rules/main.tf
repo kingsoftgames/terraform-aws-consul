@@ -1,10 +1,14 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# CREATE THE SECURITY GROUP RULES THAT CONTROL WHAT TRAFFIC CAN GO IN AND OUT OF A CONSUL CLUSTER
+# THESE TEMPLATES REQUIRE TERRAFORM VERSION 0.12 AND ABOVE
 # ---------------------------------------------------------------------------------------------------------------------
 
 terraform {
   required_version = ">= 0.12"
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# CREATE THE SECURITY GROUP RULES THAT CONTROL WHAT TRAFFIC CAN GO IN AND OUT OF A CONSUL CLUSTER
+# ---------------------------------------------------------------------------------------------------------------------
 
 resource "aws_security_group_rule" "allow_server_rpc_inbound" {
   count       = length(var.allowed_inbound_cidr_blocks) >= 1 ? 1 : 0
