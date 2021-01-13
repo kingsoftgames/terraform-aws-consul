@@ -29,6 +29,8 @@ resource "aws_autoscaling_group" "autoscaling_group" {
   wait_for_capacity_timeout = var.wait_for_capacity_timeout
   service_linked_role_arn   = var.service_linked_role_arn
 
+  target_group_arns = var.target_group_arns
+
   enabled_metrics = var.enabled_metrics
 
   tags = flatten([
