@@ -22,7 +22,7 @@ resource "aws_autoscaling_group" "autoscaling_group" {
   min_size             = var.cluster_size
   max_size             = var.cluster_size
   desired_capacity     = var.cluster_size
-  termination_policies = [var.termination_policies]
+  termination_policies = var.termination_policies
 
   health_check_type         = var.health_check_type
   health_check_grace_period = var.health_check_grace_period
