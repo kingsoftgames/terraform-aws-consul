@@ -13,8 +13,6 @@ terraform {
 resource "aws_autoscaling_group" "autoscaling_group" {
   name_prefix = "${var.cluster_name}-"
 
-  launch_configuration = aws_launch_configuration.launch_configuration.name
-
   availability_zones  = var.availability_zones
   vpc_zone_identifier = var.subnet_ids
 
@@ -33,6 +31,15 @@ resource "aws_autoscaling_group" "autoscaling_group" {
 
   enabled_metrics = var.enabled_metrics
 
+  launch_template {
+    id      = aws_launch_template.launch_template.id
+    version = "$Latest"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = flatten([
     {
       key                 = "Name"
@@ -49,42 +56,57 @@ resource "aws_autoscaling_group" "autoscaling_group" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# CREATE LAUNCH CONFIGURATION TO DEFINE WHAT RUNS ON EACH INSTANCE IN THE ASG
+# CREATE LAUNCH TEMPLATE TO DEFINE WHAT RUNS ON EACH INSTANCE IN THE ASG
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_launch_configuration" "launch_configuration" {
+resource "aws_launch_template" "launch_template" {
   name_prefix   = "${var.cluster_name}-"
   image_id      = var.ami_id
+  key_name      = var.ssh_key_name
   instance_type = var.instance_type
-  user_data     = var.user_data
-  spot_price    = var.spot_price
+  user_data     = base64encode(var.user_data)
 
-  iam_instance_profile        = var.enable_iam_setup ? concat(aws_iam_instance_profile.instance_profile.*.name, [""])[0] : var.iam_instance_profile_name
-  key_name                    = var.ssh_key_name
-  security_groups             = concat([aws_security_group.lc_security_group.id], var.additional_security_group_ids)
-  placement_tenancy           = var.tenancy
-  associate_public_ip_address = var.associate_public_ip_address
+  update_default_version = true
 
-  enable_monitoring = var.enable_detailed_monitoring
-
-  ebs_optimized = var.root_volume_ebs_optimized
-
-  root_block_device {
-    volume_type           = var.root_volume_type
-    volume_size           = var.root_volume_size
-    delete_on_termination = var.root_volume_delete_on_termination
+  placement {
+    group_name = var.enable_placement_group ? aws_placement_group.spread[0].id : null
+    tenancy    = var.tenancy
   }
 
-  # Important note: whenever using a launch configuration with an auto scaling group, you must set
-  # create_before_destroy = true. However, as soon as you set create_before_destroy = true in one resource, you must
-  # also set it in every resource that it depends on, or you'll get an error about cyclic dependencies (especially when
-  # removing resources). For more info, see:
-  #
-  # https://www.terraform.io/docs/providers/aws/r/launch_configuration.html
-  # https://terraform.io/docs/configuration/resources.html
-  lifecycle {
-    create_before_destroy = true
+  monitoring {
+    enabled = var.enable_detailed_monitoring
   }
+
+  iam_instance_profile {
+    name = var.enable_iam_setup ? concat(aws_iam_instance_profile.instance_profile.*.name, [""])[0] : var.iam_instance_profile_name
+  }
+
+  # https://github.com/terraform-providers/terraform-provider-aws/issues/4570
+  # See "Considerations" in:
+  # https://docs.aws.amazon.com/autoscaling/ec2/userguide/create-launch-template.html
+  network_interfaces {
+    associate_public_ip_address = var.associate_public_ip_address
+    security_groups             = concat([aws_security_group.lc_security_group.id], var.additional_security_group_ids)
+    delete_on_termination       = true
+  }
+
+  # root block device
+  block_device_mappings {
+    device_name = var.root_volume_device_name
+    ebs {
+      volume_type           = var.root_volume_type
+      volume_size           = var.root_volume_size
+      iops                  = var.root_volume_iops
+      throughput            = contains(["gp3"], var.root_volume_type) ? var.root_volume_throughput : null
+      delete_on_termination = var.root_volume_delete_on_termination
+    }
+  }
+}
+
+resource "aws_placement_group" "spread" {
+  count    = var.enable_placement_group ? 1 : 0
+  name     = var.cluster_name
+  strategy = "spread"
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

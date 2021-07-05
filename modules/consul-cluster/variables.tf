@@ -122,14 +122,16 @@ variable "associate_public_ip_address" {
   default     = false
 }
 
-variable "spot_price" {
-  description = "The maximum hourly price to pay for EC2 Spot Instances."
-  default     = ""
+variable "tenancy" {
+  description = "The tenancy of the instance. Must be one of: default, dedicated or host."
+  type        = string
+  default     = "default"
 }
 
-variable "tenancy" {
-  description = "The tenancy of the instance. Must be one of: empty string, default or dedicated. For EC2 Spot Instances only empty string or dedicated can be used."
-  default     = ""
+variable "enable_placement_group" {
+  description = "If true, create a spread placement group and launch instances with it. This is enabled by default, because of the nature of a consul cluster."
+  type        = bool
+  default     = true
 }
 
 variable "enable_detailed_monitoring" {
@@ -137,19 +139,31 @@ variable "enable_detailed_monitoring" {
   default     = true
 }
 
-variable "root_volume_ebs_optimized" {
-  description = "If true, the launched EC2 instance will be EBS-optimized."
-  default     = false
+variable "root_volume_device_name" {
+  description = "The device name of volume. To find device name of the existing AMI, see: https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-images.html"
+  default     = "/dev/sda1"
 }
 
 variable "root_volume_type" {
-  description = "The type of volume. Must be one of: standard, gp2, or io1."
-  default     = "standard"
+  description = "The type of root EBS volume. Must be one of: gp2, gp3, io1, io2, sc1, st1"
+  default     = "gp3"
 }
 
 variable "root_volume_size" {
   description = "The size, in GB, of the root EBS volume."
-  default     = 50
+  default     = 40
+}
+
+variable "root_volume_iops" {
+  description = "The amount of provisioned IOPS for the root EBS volume. This must be set with a root_volume_type of \"io1\", \"io2\", \"gp3\". (n.b.) The default for gp3 volumes is 3,000 IOPS."
+  type        = number
+  default     = null
+}
+
+variable "root_volume_throughput" {
+  description = "The throughput that the volume supports, in MiB/s. Only valid for type of \"gp3\". (n.b.) The default for gp3 volumes is 125 MiB/s."
+  type        = number
+  default     = null
 }
 
 variable "root_volume_delete_on_termination" {
