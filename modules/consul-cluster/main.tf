@@ -40,20 +40,39 @@ resource "aws_autoscaling_group" "autoscaling_group" {
     create_before_destroy = true
   }
 
-  tags = flatten([
-    {
-      key                 = "Name"
-      value               = var.cluster_name
+  dynamic "tag" {
+    for_each = data.aws_default_tags.this.tags
+    content {
+      key                 = tag.key
+      value               = tag.value
       propagate_at_launch = true
-    },
-    {
-      key                 = var.cluster_tag_key
-      value               = var.cluster_tag_value
-      propagate_at_launch = true
-    },
-    var.tags,
-  ])
+    }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = var.cluster_name
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = var.cluster_tag_key
+    value               = var.cluster_tag_value
+    propagate_at_launch = true
+  }
+
+  dynamic "tag" {
+    for_each = var.tags
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = tag.propagate_at_launch
+    }
+  }
 }
+
+# https://learn.hashicorp.com/tutorials/terraform/aws-default-tags#propagate-default-tags-to-auto-scaling-group
+data "aws_default_tags" "this" {}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # CREATE LAUNCH TEMPLATE TO DEFINE WHAT RUNS ON EACH INSTANCE IN THE ASG
