@@ -45,20 +45,8 @@ resource "aws_autoscaling_group" "autoscaling_group" {
     content {
       key                 = tag.key
       value               = tag.value
-      propagate_at_launch = true
+      propagate_at_launch = false
     }
-  }
-
-  tag {
-    key                 = "Name"
-    value               = var.cluster_name
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = var.cluster_tag_key
-    value               = var.cluster_tag_value
-    propagate_at_launch = true
   }
 
   dynamic "tag" {
@@ -66,7 +54,7 @@ resource "aws_autoscaling_group" "autoscaling_group" {
     content {
       key                 = tag.key
       value               = tag.value
-      propagate_at_launch = tag.propagate_at_launch
+      propagate_at_launch = false
     }
   }
 }
@@ -129,12 +117,38 @@ resource "aws_launch_template" "launch_template" {
     # https://aws.amazon.com/about-aws/whats-new/2022/01/instance-tags-amazon-ec2-instance-metadata-service/
     instance_metadata_tags = "enabled"
   }
+
+  tags = var.tags
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = merge(
+      data.aws_default_tags.this.tags,
+      {
+        Name                     = var.cluster_name
+        "${var.cluster_tag_key}" = var.cluster_tag_value
+      },
+      var.tags
+    )
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = merge(
+      data.aws_default_tags.this.tags,
+      {
+        Name = "${var.cluster_name}.root"
+      },
+      var.tags
+    )
+  }
 }
 
 resource "aws_placement_group" "spread" {
   count    = var.enable_placement_group ? 1 : 0
   name     = var.cluster_name
   strategy = "spread"
+  tags     = var.tags
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -226,6 +240,8 @@ resource "aws_iam_instance_profile" "instance_profile" {
   path        = var.instance_profile_path
   role        = concat(aws_iam_role.instance_role.*.name, [""])[0]
 
+  tags = var.tags
+
   # aws_launch_configuration.launch_configuration in this module sets create_before_destroy to true, which means
   # everything it depends on, including this resource, must set it as well, or you'll get cyclic dependency errors
   # when you try to do a terraform destroy.
@@ -239,6 +255,8 @@ resource "aws_iam_role" "instance_role" {
 
   name_prefix        = "${var.cluster_name}-"
   assume_role_policy = data.aws_iam_policy_document.instance_role.json
+
+  tags = var.tags
 
   # aws_iam_instance_profile.instance_profile in this module sets create_before_destroy to true, which means
   # everything it depends on, including this resource, must set it as well, or you'll get cyclic dependency errors
